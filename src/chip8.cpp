@@ -4,6 +4,7 @@
 #include <fstream>
 #include <bits/stdc++.h>
 #include <cstdlib>
+#include "sdl_interface.hpp"
 
 class Chip8 {
     private:
@@ -325,12 +326,30 @@ class Chip8 {
                 memory[FONT_LOAD_START_ADDRESS + i] = fontset[i];
             }
         }
+
+        void screen_test() {
+            SDLInterface sdl_interface;
+            sdl_interface.create_window();
+
+            for(int y = 0; y < DISPLAY_HEIGHT; y++){
+                for(int x = 0; x < DISPLAY_WIDTH; x++) {
+                    if ((x+y) % 2 == 0) {
+                        display[y][x] = 1;
+                    }
+                }
+            }
+
+            sdl_interface.draw_display(display);
+
+            SDL_Delay(5000);
+
+            sdl_interface.destroy_window();
+        }
 };
 
 int main() {
     Chip8 chip8;
-    chip8.load_rom("pong.rom");
-    chip8.load_font();
+    chip8.screen_test();
 
     return 1;
 }
