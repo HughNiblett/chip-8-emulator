@@ -14,6 +14,7 @@ class Chip8 {
         uint16_t func_stack[16]{};
         uint8_t stack_pointer{};
         uint8_t delay_timer{};
+        uint8_t sound_timer{};
         uint8_t keypad{};
 
         static constexpr unsigned int DISPLAY_WIDTH = 64;
@@ -230,6 +231,64 @@ class Chip8 {
             }
             
             registers[0xF] = set_flag ? 1 : 0;
+        }
+
+        void OP_Ex9E() {
+            // Todo, requires SDL interface first
+        }
+
+        void OP_ExA1() {
+            // Todo, requires SDL interface first
+        }
+
+        void OP_Fx07() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            registers[x] = delay_timer;
+        }
+
+        void OP_Fx0A() {
+            // Todo, requires SDL interface first
+        }
+
+        void OP_Fx15() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            delay_timer = registers[x];
+        }
+
+        void OP_Fx18() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            sound_timer = registers[x];
+        }
+
+        void OP_Fx1E() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            index_reg += registers[x];
+        }
+
+        void OP_Fx29() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            index_reg = FONT_LOAD_START_ADDRESS + registers[x] * 5;
+        }
+
+        void OP_Fx33() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            memory[index_reg] = registers[x] / 100;
+            memory[index_reg + 1] = (registers[x] % 100) /10;
+            memory[index_reg + 2] = (registers[x] % 100) % 10;
+        }
+
+        void OP_Fx55() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            for (int i = 0; i < x; i++) {
+                memory[index_reg + i] = registers[i];
+            }
+        }
+
+        void OP_Fx65() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            for (int i = 0; i < x; i++) {
+                registers[i] = memory[index_reg + i];
+            }
         }
         
     public:
