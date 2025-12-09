@@ -1,0 +1,277 @@
+#include <cstdint>
+#include <stack>
+#include <iostream>
+#include <fstream>
+#include <bits/stdc++.h>
+#include <cstdlib>
+
+class Chip8 {
+    private:
+        uint8_t registers[16]{};
+        uint8_t memory[4096]{};
+        uint16_t index_reg{};
+        uint16_t pc{};
+        uint16_t func_stack[16]{};
+        uint8_t stack_pointer{};
+        uint8_t delay_timer{};
+        uint8_t keypad{};
+
+        static constexpr unsigned int DISPLAY_WIDTH = 64;
+        static constexpr unsigned int DISPLAY_HEIGHT = 32;
+
+        uint32_t display[DISPLAY_HEIGHT][DISPLAY_WIDTH]{};
+	    uint16_t opcode;
+
+        static constexpr unsigned int FONT_SET_SIZE = 80;
+
+        uint8_t fontset[FONT_SET_SIZE] =
+        {
+            0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+            0x20, 0x60, 0x20, 0x20, 0x70, // 1
+            0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+            0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+            0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+            0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+            0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+            0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+            0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+            0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+            0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+            0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+            0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+            0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+            0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+            0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+        };
+        
+        const unsigned int ROM_LOAD_START_ADDRESS = 0x200;
+        const unsigned int FONT_LOAD_START_ADDRESS = 0x50;
+        
+        void OP_00E0() {
+            memset(display, 0, sizeof(display));
+        }
+
+        void OP_00EE() {
+            pc = func_stack[--stack_pointer];
+        }
+
+        void OP_1nnn() {
+            pc = opcode - 0x1000u;
+        }
+
+        void OP_2nnn() {
+            func_stack[++stack_pointer] = pc;
+            pc = opcode - 0x2000u;
+        }
+
+        void OP_3xkk() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            uint8_t val = opcode & 0x00FFu;
+            if (registers[x] == val) {
+                pc+=2;
+            }
+        }
+
+        void OP_4xkk() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            uint8_t val = opcode & 0x00FFu;
+            if (registers[x] == val) {
+                pc+=2;
+            }
+        }
+
+        void OP_5xy0() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            int y = (opcode & 0x00F0u) >> 4u;
+            if(registers[x] == registers[y]) {
+                pc+=2;
+            }
+        }
+
+        void OP_6xkk() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            uint8_t val = opcode & 0x00FFu;
+            registers[x] = val;
+        }
+
+        void OP_7xkk() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            uint8_t val = opcode & 0x00FFu;
+            registers[x] = registers[x] + val;
+        }
+
+        void OP_8xy0() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            int y = (opcode & 0x00F0u) >> 4u;
+            registers[x] = registers[y];
+        }
+
+        void OP_8xy1() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            int y = (opcode & 0x00F0u) >> 4u;
+            registers[x] = registers[x] | registers[y];
+        }
+
+        void OP_8xy2() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            int y = (opcode & 0x00F0u) >> 4u;
+            registers[x] = registers[x] & registers[y];
+        }
+
+        void OP_8xy3() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            int y = (opcode & 0x00F0u) >> 4u;
+            registers[x] = registers[x] ^ registers[y];
+        }
+
+        void OP_8xy4() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            int y = (opcode & 0x00F0u) >> 4u;
+            int result = registers[x] + registers[y];
+            if (result > 255u) {
+                registers[0xFu] = 1;
+            }
+            else {
+                registers[0xFu] = 0;
+            }
+            registers[x] = result;
+        }
+
+        void OP_8xy5() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            int y = (opcode & 0x00F0u) >> 4u;
+            uint8_t result = registers[x] - registers[y];
+            if (registers[x] > registers[y]) {
+                registers[0xFu] = 1;
+            }
+            else {
+                registers[0xFu] = 0;
+            }
+            registers[x] = result;
+        }
+
+        void OP_8xy6() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            if (registers[x] & 0x01u == 1u) {
+                registers[0xFu] = 1;
+            }
+            else {
+                registers[0xFu] = 0;
+            }
+            registers[x] = registers[x] >> 1;
+        }
+
+        void OP_8xy7() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            int y = (opcode & 0x00F0u) >> 4u;
+            uint8_t result = registers[y] - registers[x];
+            if (registers[y] > registers[x]) {
+                registers[0xFu] = 1;
+            }
+            else {
+                registers[0xFu] = 0;
+            }
+            registers[x] = result;
+        }
+
+        void OP_8xyE() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            if (registers[x] & 0x80u == 1u) {
+                registers[0xFu] = 1;
+            }
+            else {
+                registers[0xFu] = 0;
+            }
+            registers[x] = registers[x] << 1;
+        }
+
+        void OP_9xy0() {
+            int x = (opcode & 0x0F00u) >> 8u;
+            int y = (opcode & 0x00F0u) >> 4u;
+            if(registers[x] != registers[y]) {
+                pc+=2;
+            }
+        }
+
+        void OP_Annn() {
+            index_reg = opcode & 0x0FFFu;
+        }
+
+        void OP_Bnnn() {
+            pc = (opcode & 0x0FFFu) + registers[0];
+        }
+
+        void OP_Cxkk() {
+            srand(time(0));
+            uint8_t random_num = rand() % 256;
+            int x = (opcode & 0x0F00u) >> 8u;
+            registers[x] = (opcode & 0x00FFu) & random_num;
+        }
+
+        void OP_Dxyn() {
+            int x = registers[(opcode & 0x0F00u) >> 8u];
+            int y = registers[(opcode & 0x00F0u) >> 4u];
+            int n = opcode & 0x000Fu;
+            bool set_flag = false;
+
+            for(int k = 0; k < n; k++) {
+                int y_pos = (y+k) % 32;
+                int mem_pos = index_reg + k;
+                for(int l = 0; l < 8; l++) {
+                    uint8_t sprite_bit = (memory[mem_pos] >> (7 - l)) & 1;
+                    uint32_t &pixel = display[y_pos][(x + l) % 64];
+
+                    if (sprite_bit && pixel) {
+                        set_flag = true;
+                    }
+
+                    pixel ^= sprite_bit;
+                }
+            }
+            
+            registers[0xF] = set_flag ? 1 : 0;
+        }
+        
+    public:
+        bool load_rom(std::string rom_name) {
+            std::ifstream infile;
+            infile.open(rom_name, std::ios_base::binary | std::ios::ate);
+            
+            if(!infile) {
+                return false;
+            }
+
+            int size = infile.tellg();
+
+            if(size > 3584) {
+                return false;
+            }
+
+            infile.seekg(0, infile.beg);
+
+            char* buffer = new char[size];
+            infile.read(buffer, size);
+
+            for(int i = 0; i < size; i++) {
+                memory[i + ROM_LOAD_START_ADDRESS] = buffer[i];
+            }
+            
+            delete[] buffer;
+            infile.close();
+            return true;
+        };
+
+        void load_font() {
+            for(int i = 0; i<FONT_SET_SIZE; i++){
+                memory[FONT_LOAD_START_ADDRESS + i] = fontset[i];
+            }
+        }
+};
+
+int main() {
+    Chip8 chip8;
+    chip8.load_rom("pong.rom");
+    chip8.load_font();
+
+    return 1;
+}
