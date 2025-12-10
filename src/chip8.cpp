@@ -291,6 +291,165 @@ class Chip8 {
                 registers[i] = memory[index_reg + i];
             }
         }
+
+        void decode_opcode_execute() {
+            uint16_t msn = opcode & 0xF000u;
+            switch (msn)
+            {
+                case 0x0000u:
+                    decode_OP0xxx_execute();
+                    break;
+                case 0x1000u:
+                    OP_1nnn();
+                    break;
+                case 0x2000u:
+                    OP_2nnn();
+                    break;
+                case 0x3000u:
+                    OP_3xkk();
+                    break;
+                case 0x4000u:
+                    OP_4xkk();
+                    break;
+                case 0x5000u:
+                    OP_5xy0();
+                    break;
+                case 0x6000u:
+                    OP_6xkk();
+                    break;
+                case 0x7000u:
+                    OP_7xkk();
+                    break;
+                case 0x8000u:
+                    decode_OP8xxx_execute();
+                    break;
+                case 0x9000u:
+                    OP_9xy0();
+                    break;
+                case 0xA000u:
+                    OP_Annn();
+                    break;
+                case 0xB000u:
+                    OP_Bnnn();
+                    break;
+                case 0xC000u:
+                    OP_Cxkk();
+                    break;
+                case 0xD000u:
+                    OP_Dxyn();
+                    break;
+                case 0xE000u:
+                    decode_OPExxx_execute();
+                    break;
+                case 0xF000u:
+                    decode_OPFxxx_execute();
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        void decode_OP0xxx_execute() {
+            uint16_t lsn = opcode & 0x000Fu;
+            switch (lsn)
+            {
+                case 0x0000u:
+                    OP_00E0();
+                    break;
+                case 0x000Eu:
+                    OP_00EE();
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        void decode_OP8xxx_execute() {
+            uint16_t lsn = opcode & 0x000Fu;
+            switch (lsn)
+            {
+                case 0x0000u:
+                    OP_8xy0();
+                    break;
+                case 0x0001u:
+                    OP_8xy1();
+                    break;
+                case 0x0002u:
+                    OP_8xy2();
+                    break;
+                case 0x0003u:
+                    OP_8xy3();
+                    break;
+                case 0x0004u:
+                    OP_8xy4();
+                    break;
+                case 0x0005u:
+                    OP_8xy5();
+                    break;
+                case 0x0006u:
+                    OP_8xy6();
+                    break;
+                case 0x0007u:
+                    OP_8xy7();
+                    break;
+                case 0x000Eu:
+                    OP_8xyE();
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        void decode_OPExxx_execute() {
+            uint16_t lsn = opcode & 0x000Fu;
+            switch (lsn)
+            {
+                case 0x0001u:
+                    OP_ExA1();
+                    break;
+                case 0x000Eu:
+                    OP_Ex9E();
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        void decode_OPFxxx_execute() {
+            uint16_t lsn2 = opcode & 0x00FFu;
+            switch (lsn2)
+            {
+                case 0x0007u:
+                    OP_Fx07();
+                    break;
+                case 0x000Au:
+                    OP_Fx0A();
+                    break;
+                case 0x0015u:
+                    OP_Fx15();
+                    break;
+                case 0x0018u:
+                    OP_Fx18();
+                    break;
+                case 0x001Eu:
+                    OP_Fx1E();
+                    break;
+                case 0x0029u:
+                    OP_Fx29();
+                    break;
+                case 0x0033u:
+                    OP_Fx33();
+                    break;
+                case 0x0055u:
+                    OP_Fx55();
+                    break;
+                case 0x0065u:
+                    OP_Fx65();
+                    break;
+                default:
+                    break;
+            }
+        }
         
     public:
         bool load_rom(std::string rom_name) {
