@@ -58,7 +58,7 @@ class Chip8 {
         }
 
         void OP_00EE() {
-            pc = func_stack[--stack_pointer];
+            pc = func_stack[stack_pointer--];
         }
 
         void OP_1nnn() {
@@ -81,7 +81,7 @@ class Chip8 {
         void OP_4xkk() {
             int x = (opcode & 0x0F00u) >> 8u;
             uint8_t val = opcode & 0x00FFu;
-            if (registers[x] == val) {
+            if (registers[x] != val) {
                 pc+=2;
             }
         }
@@ -219,14 +219,13 @@ class Chip8 {
             int y = registers[(opcode & 0x00F0u) >> 4u];
             int n = opcode & 0x000Fu;
             bool set_flag = false;
-            std::cout << "Drawing";
 
             for(int k = 0; k < n; k++) {
                 int y_pos = (y+k) % 32;
                 int mem_pos = index_reg + k;
                 for(int l = 0; l < 8; l++) {
                     uint8_t sprite_bit = (memory[mem_pos] >> (7 - l)) & 1;
-                    uint32_t pixel = display[y_pos][(x + l) % 64];
+                    uint32_t &pixel = display[y_pos][(x + l) % 64];
 
                     if (sprite_bit && pixel) {
                         set_flag = true;
@@ -240,11 +239,19 @@ class Chip8 {
         }
 
         void OP_Ex9E() {
-            // Todo, requires SDL interface first
+            int x = (opcode & 0x0F00u) >> 8u;
+            uint8_t key = registers[x];
+            if (key < 16) {
+                pc += sdl_interface.get_keys()[key] ? 2 : 0;
+            }
         }
 
         void OP_ExA1() {
-            // Todo, requires SDL interface first
+            int x = (opcode & 0x0F00u) >> 8u;
+            uint8_t key = registers[x];
+            if (key < 16) {
+                pc += sdl_interface.get_keys()[key] ? 0 : 2;
+            }
         }
 
         void OP_Fx07() {
@@ -253,7 +260,17 @@ class Chip8 {
         }
 
         void OP_Fx0A() {
-            // Todo, requires SDL interface first
+            int x = (opcode & 0x0F00u) >> 8u;
+            bool (&keys)[16] = sdl_interface.get_keys();
+            bool pressed = false;
+            for(uint8_t i = 0; i < 16; i++) {
+                if(keys[i]) {
+                    registers[x] = i;
+                    pressed = true;
+                    break;
+                }
+            }
+            pc -= pressed ? 0 : 2;
         }
 
         void OP_Fx15() {
@@ -285,14 +302,14 @@ class Chip8 {
 
         void OP_Fx55() {
             int x = (opcode & 0x0F00u) >> 8u;
-            for (int i = 0; i < x; i++) {
+            for (int i = 0; i <= x; i++) {
                 memory[index_reg + i] = registers[i];
             }
         }
 
         void OP_Fx65() {
             int x = (opcode & 0x0F00u) >> 8u;
-            for (int i = 0; i < x; i++) {
+            for (int i = 0; i <= x; i++) {
                 registers[i] = memory[index_reg + i];
             }
         }
@@ -462,6 +479,19 @@ class Chip8 {
             opcode = (inst1 << 8) + inst2;
             pc+=2;
         }
+
+        void cycle() {
+            sdl_interface.process_events();
+            fetch_instruction();
+            decode_opcode_execute();
+
+            delay_timer -= delay_timer > 0 ? 1 : 0;
+            sound_timer -= sound_timer > 0 ? 1 : 0;
+
+            sdl_interface.draw_display(display);
+
+            std::cout << opcode<< "\n";
+        }
         
     public:
         bool load_rom(std::string rom_name) {
@@ -469,12 +499,11 @@ class Chip8 {
             infile.open(rom_name, std::ios_base::binary | std::ios::ate);
 
             if(!infile) {
-                std::cout << "Fail";
                 return false;
             }
 
             int size = infile.tellg();
-            std::cout << size;
+
             if(size > 3584) {
                 return false;
             }
@@ -500,22 +529,25 @@ class Chip8 {
         }
 
         void run_program(std::string rom_name) {
+            int cycle_delay = 3;
             bool exit = false;
             load_rom(rom_name);
             pc = ROM_LOAD_START_ADDRESS;
             sdl_interface.create_window();
+            auto lastCycleTime = std::chrono::high_resolution_clock::now();
             while(!exit) {
-                fetch_instruction();
-                decode_opcode_execute();
-                sdl_interface.draw_display(display);
-                sdl_interface.process_events();
                 if(sdl_interface.poll_exit()) {
                     exit = true;
                 }
-                std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                std::cout << pc << "\n";
-                std::cout << memory[pc] << memory[pc+1] << "\n";
-                std::cout << opcode << "\n";
+                auto currentTime = std::chrono::high_resolution_clock::now();
+                float dt = std::chrono::duration<float, std::chrono::milliseconds::period>(currentTime - lastCycleTime).count();
+
+                if (dt > cycle_delay)
+                {
+                    lastCycleTime = currentTime;
+
+                    cycle();
+                }
             }
             sdl_interface.destroy_window();
         }
@@ -542,7 +574,7 @@ class Chip8 {
 
 int main() {
     Chip8 chip8;
-    chip8.run_program("IBMLogo.ch8");
+    chip8.run_program("tetris.ch8");
 
     return 1;
 }

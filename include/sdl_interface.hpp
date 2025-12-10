@@ -12,6 +12,7 @@ private:
     static constexpr unsigned int DISPLAY_HEIGHT = 32;
 
     bool exit = false;
+    bool keys[16]{};
     SDL_Window* window = nullptr;
     SDL_Surface* surface = nullptr;
     SDL_Event ev;
@@ -28,6 +29,11 @@ public:
 
     // Process all events in events queue
     void process_events();
+
+    // Switch key type and set key array accordingly
+    void process_key(SDL_Keycode keycode, int down);
+
+    bool (&get_keys())[16];
 
     // Check if program has been exited
     bool poll_exit();
