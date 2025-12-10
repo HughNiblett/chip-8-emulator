@@ -11,8 +11,10 @@ private:
     static constexpr unsigned int DISPLAY_WIDTH = 64;
     static constexpr unsigned int DISPLAY_HEIGHT = 32;
 
+    bool exit = false;
     SDL_Window* window = nullptr;
     SDL_Surface* surface = nullptr;
+    SDL_Event ev;
 
 public:
     // Initialize SDL and create a window
@@ -23,4 +25,10 @@ public:
 
     // Draw the CHIP-8 display buffer to the SDL surface
     void draw_display(uint32_t (&display)[DISPLAY_HEIGHT][DISPLAY_WIDTH]);
+
+    // Process all events in events queue
+    void process_events();
+
+    // Check if program has been exited
+    bool poll_exit();
 };

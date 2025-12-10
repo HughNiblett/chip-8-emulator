@@ -5,6 +5,8 @@
 #include <bits/stdc++.h>
 #include <cstdlib>
 #include "sdl_interface.hpp"
+#include <chrono>
+#include <thread>
 
 class Chip8 {
     private:
@@ -48,6 +50,8 @@ class Chip8 {
         
         const unsigned int ROM_LOAD_START_ADDRESS = 0x200;
         const unsigned int FONT_LOAD_START_ADDRESS = 0x50;
+
+        SDLInterface sdl_interface;
         
         void OP_00E0() {
             memset(display, 0, sizeof(display));
@@ -215,13 +219,14 @@ class Chip8 {
             int y = registers[(opcode & 0x00F0u) >> 4u];
             int n = opcode & 0x000Fu;
             bool set_flag = false;
+            std::cout << "Drawing";
 
             for(int k = 0; k < n; k++) {
                 int y_pos = (y+k) % 32;
                 int mem_pos = index_reg + k;
                 for(int l = 0; l < 8; l++) {
                     uint8_t sprite_bit = (memory[mem_pos] >> (7 - l)) & 1;
-                    uint32_t &pixel = display[y_pos][(x + l) % 64];
+                    uint32_t pixel = display[y_pos][(x + l) % 64];
 
                     if (sprite_bit && pixel) {
                         set_flag = true;
@@ -450,18 +455,26 @@ class Chip8 {
                     break;
             }
         }
+
+        void fetch_instruction() {
+            uint16_t inst1 = memory[pc];
+            uint16_t inst2 = memory[pc+1];
+            opcode = (inst1 << 8) + inst2;
+            pc+=2;
+        }
         
     public:
         bool load_rom(std::string rom_name) {
             std::ifstream infile;
             infile.open(rom_name, std::ios_base::binary | std::ios::ate);
-            
+
             if(!infile) {
+                std::cout << "Fail";
                 return false;
             }
 
             int size = infile.tellg();
-
+            std::cout << size;
             if(size > 3584) {
                 return false;
             }
@@ -486,6 +499,27 @@ class Chip8 {
             }
         }
 
+        void run_program(std::string rom_name) {
+            bool exit = false;
+            load_rom(rom_name);
+            pc = ROM_LOAD_START_ADDRESS;
+            sdl_interface.create_window();
+            while(!exit) {
+                fetch_instruction();
+                decode_opcode_execute();
+                sdl_interface.draw_display(display);
+                sdl_interface.process_events();
+                if(sdl_interface.poll_exit()) {
+                    exit = true;
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                std::cout << pc << "\n";
+                std::cout << memory[pc] << memory[pc+1] << "\n";
+                std::cout << opcode << "\n";
+            }
+            sdl_interface.destroy_window();
+        }
+
         void screen_test() {
             SDLInterface sdl_interface;
             sdl_interface.create_window();
@@ -500,7 +534,7 @@ class Chip8 {
 
             sdl_interface.draw_display(display);
 
-            SDL_Delay(5000);
+            SDL_Delay(50);
 
             sdl_interface.destroy_window();
         }
@@ -508,7 +542,7 @@ class Chip8 {
 
 int main() {
     Chip8 chip8;
-    chip8.screen_test();
+    chip8.run_program("IBMLogo.ch8");
 
     return 1;
 }
