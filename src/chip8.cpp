@@ -134,61 +134,47 @@ class Chip8 {
             int x = (opcode & 0x0F00u) >> 8u;
             int y = (opcode & 0x00F0u) >> 4u;
             int result = registers[x] + registers[y];
+            registers[x] = result;
             if (result > 255u) {
                 registers[0xFu] = 1;
             }
             else {
                 registers[0xFu] = 0;
             }
-            registers[x] = result;
         }
 
         void OP_8xy5() {
             int x = (opcode & 0x0F00u) >> 8u;
             int y = (opcode & 0x00F0u) >> 4u;
+            
             uint8_t result = registers[x] - registers[y];
-            if (registers[x] > registers[y]) {
-                registers[0xFu] = 1;
-            }
-            else {
-                registers[0xFu] = 0;
-            }
+            uint8_t borrow = (registers[x] >= registers[y]);
             registers[x] = result;
+            registers[0xFu] = borrow;
         }
 
         void OP_8xy6() {
             int x = (opcode & 0x0F00u) >> 8u;
-            if (registers[x] & 0x01u == 1u) {
-                registers[0xFu] = 1;
-            }
-            else {
-                registers[0xFu] = 0;
-            }
+            uint8_t lsb = registers[x] & 0x01u;
             registers[x] = registers[x] >> 1;
+            registers[0xFu] = lsb;
         }
 
         void OP_8xy7() {
             int x = (opcode & 0x0F00u) >> 8u;
             int y = (opcode & 0x00F0u) >> 4u;
+            
             uint8_t result = registers[y] - registers[x];
-            if (registers[y] > registers[x]) {
-                registers[0xFu] = 1;
-            }
-            else {
-                registers[0xFu] = 0;
-            }
+            uint8_t borrow = (registers[y] >= registers[x]);
             registers[x] = result;
+            registers[0xFu] = borrow;
         }
 
         void OP_8xyE() {
             int x = (opcode & 0x0F00u) >> 8u;
-            if (registers[x] & 0x80u == 1u) {
-                registers[0xFu] = 1;
-            }
-            else {
-                registers[0xFu] = 0;
-            }
+            uint8_t msb = registers[x] & 0x80u;
             registers[x] = registers[x] << 1;
+            registers[0xFu] = msb;
         }
 
         void OP_9xy0() {
@@ -489,8 +475,6 @@ class Chip8 {
             sound_timer -= sound_timer > 0 ? 1 : 0;
 
             sdl_interface.draw_display(display);
-
-            std::cout << opcode<< "\n";
         }
         
     public:
@@ -529,8 +513,9 @@ class Chip8 {
         }
 
         void run_program(std::string rom_name) {
-            int cycle_delay = 3;
+            int cycle_delay = 1;
             bool exit = false;
+            load_font();
             load_rom(rom_name);
             pc = ROM_LOAD_START_ADDRESS;
             sdl_interface.create_window();
@@ -574,7 +559,7 @@ class Chip8 {
 
 int main() {
     Chip8 chip8;
-    chip8.run_program("tetris.ch8");
+    chip8.run_program("4-flags.ch8");
 
     return 1;
 }
