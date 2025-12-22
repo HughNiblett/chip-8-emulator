@@ -172,7 +172,8 @@ class Chip8 {
 
         void OP_8xyE() {
             int x = (opcode & 0x0F00u) >> 8u;
-            uint8_t msb = registers[x] & 0x80u;
+            uint8_t msb = (registers[x] > 128u);
+            std::cout << static_cast<int>(msb) << " " << static_cast<int>(registers[x]) << "\n";
             registers[x] = registers[x] << 1;
             registers[0xFu] = msb;
         }
@@ -353,6 +354,7 @@ class Chip8 {
                     decode_OPFxxx_execute();
                     break;
                 default:
+                    std::cout << "fuck";
                     break;
             }
         }
@@ -404,6 +406,7 @@ class Chip8 {
                     OP_8xyE();
                     break;
                 default:
+                    std::cout << "fuck";
                     break;
             }
         }
@@ -513,7 +516,7 @@ class Chip8 {
         }
 
         void run_program(std::string rom_name) {
-            int cycle_delay = 1;
+            int cycle_delay = 3;
             bool exit = false;
             load_font();
             load_rom(rom_name);
@@ -557,9 +560,10 @@ class Chip8 {
         }
 };
 
-int main() {
+int main(int argc, char** argv) {
     Chip8 chip8;
-    chip8.run_program("4-flags.ch8");
+    std::cout << argv[1];
+    chip8.run_program(argv[1]);
 
     return 1;
 }
